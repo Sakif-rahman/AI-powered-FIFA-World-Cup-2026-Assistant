@@ -1,0 +1,250 @@
+Prompt
+
+Build a production-ready AI-powered FIFA World Cup 2026 Assistant using Python, LangGraph, MCP (Model Context Protocol), Groq LLM, RAG, and Streamlit Cloud deployment.
+
+Objective
+
+Create a chatbot that answers questions about FIFA World Cup 2026 participating teams, tournament history, statistics, schedules, and predictions.
+
+The system must use:
+
+LangGraph for multi-agent orchestration
+MCP (Model Context Protocol) for tool integration
+Groq API via existing groq_chatbot.py
+ChromaDB for vector storage
+CSV files as the structured database
+Streamlit as the frontend
+Deployable on Streamlit Cloud
+
+The architecture should be modular, scalable, and easy to extend.
+
+Existing File
+
+The project already contains:
+
+groq_chatbot.py (use more bigger model)
+
+Use this file as the only LLM interface.
+
+
+
+
+Data Sources
+Team Knowledge Base
+
+
+
+Summary:
+Argentina are the defending champions...
+
+world_cup_history.csv
+
+
+world_cup_matches.csv
+
+
+fifa_rankings.csv
+
+
+RAG System
+
+Implement:
+
+Embeddings
+
+Use:
+
+Vector Database
+
+Use:
+
+ChromaDB
+Retrieval
+
+Example:
+
+
+Multi-Agent Architecture
+
+Implement using LangGraph.
+
+Supervisor Agent
+
+Responsibilities:
+
+Analyze user intent
+Route requests
+
+Possible routes:
+
+Team Questions
+History Questions
+Prediction Questions
+Schedule Questions
+General Questions
+Team Agent
+
+Uses RAG.
+
+Examples:
+
+Tell me about Argentina
+
+Who is Argentina's captain?
+
+Compare Brazil and France
+History Agent
+
+Uses CSV lookup.
+
+Examples:
+
+Who won the 2018 World Cup?
+
+Which country won most World Cups?
+Prediction Agent
+
+Uses:
+
+FIFA ranking
+Historical performance
+
+Examples:
+
+Who is likely to win Group J?
+
+Predict top 4 teams.
+
+Implement a simple scoring algorithm.
+
+No gambling functionality.
+
+Schedule Agent
+
+Reads:
+
+world_cup_schedule.csv
+
+Answers:
+
+When does Argentina play next?
+
+Show Group J matches.
+MCP Integration
+
+Implement MCP server and tools.
+
+Expose:
+
+Team Tool
+get_team_info(team_name)
+History Tool
+get_worldcup_history(year)
+Ranking Tool
+get_team_ranking(team_name)
+Match Tool
+get_matches(team_name)
+
+Register all tools through MCP.
+
+All agents should access data through MCP tools when possible.
+
+LangGraph Workflow
+
+Create a graph:
+
+User
+  |
+Supervisor
+  |
+----------------------------------
+|        |         |            |
+Team   History  Prediction  Schedule
+Agent   Agent     Agent       Agent
+
+Return final response through Supervisor.
+
+Streamlit UI
+
+Create modern UI.
+
+Features:
+
+Chat interface
+Chat history
+Sidebar
+Team selector
+Example prompts
+World Cup statistics panel
+
+Example prompts:
+
+Tell me about Argentina
+
+Who won the 2022 World Cup?
+
+Compare Brazil and France
+
+Predict Group J winner
+
+Show England schedule
+Deployment Requirements
+
+Must run on:
+
+Streamlit Cloud
+
+Requirements:
+
+Python 3.11+
+No Docker required
+Use environment variables
+
+Example:
+
+
+Store secrets in:
+
+.streamlit/secrets.toml
+Production Requirements
+
+Implement:
+
+Logging
+logging
+Error Handling
+
+Graceful failures.
+
+Type Hints
+
+Use throughout.
+
+Modular Code
+
+
+Config Class
+
+Centralized configuration.
+
+Deliverables
+
+Generate:
+
+Complete source code
+requirements.txt
+README.md
+Streamlit Cloud deployment instructions
+Sample datasets
+LangGraph workflow implementation
+MCP server implementation
+ChromaDB ingestion script
+Streamlit frontend
+Environment variable configuration
+
+The final code should be production-quality, cleanly structured, and runnable with:
+
+pip install -r requirements.txt
+streamlit run app.py
+
+Use modern LangGraph patterns, MCP tool architecture, and best practices for scalable AI applications.

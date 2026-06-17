@@ -1,0 +1,26 @@
+match_id,date,time,group,home_team,away_team,venue,city,stage
+1,2026-06-11,19:00,A,Argentina,Croatia,Estadio Azteca,Mexico City,Group Stage
+2,2026-06-12,16:00,B,France,Senegal,MetLife Stadium,New Jersey,Group Stage
+3,2026-06-13,18:00,C,Brazil,Switzerland,SoFi Stadium,Los Angeles,Group Stage
+4,2026-06-13,21:00,D,England,Ecuador,AT&T Stadium,Dallas,Group Stage
+5,2026-06-14,16:00,E,Spain,Japan,Lumen Field,Seattle,Group Stage
+6,2026-06-14,19:00,F,Germany,Uruguay,Mercedes-Benz Stadium,Atlanta,Group Stage
+7,2026-06-15,18:00,G,Portugal,Morocco,Hard Rock Stadium,Miami,Group Stage
+8,2026-06-15,21:00,H,Netherlands,Denmark,Levi's Stadium,San Francisco,Group Stage
+9,2026-06-16,16:00,I,Belgium,Austria,Lincoln Financial Field,Philadelphia,Group Stage
+10,2026-06-12,19:00,J,United States,Japan,SoFi Stadium,Los Angeles,Group Stage
+11,2026-06-12,21:00,J,Mexico,Canada,Estadio Azteca,Mexico City,Group Stage
+12,2026-06-17,16:00,J,United States,Mexico,SoFi Stadium,Los Angeles,Group Stage
+13,2026-06-17,19:00,J,Canada,Japan,BMO Field,Toronto,Group Stage
+14,2026-06-22,18:00,J,United States,Canada,SoFi Stadium,Los Angeles,Group Stage
+15,2026-06-22,18:00,J,Mexico,Japan,Estadio Akron,Guadalajara,Group Stage
+16,2026-06-18,19:00,A,Argentina,Saudi Arabia,Estadio BBVA,Monterrey,Group Stage
+17,2026-06-24,21:00,A,Argentina,Iran,Estadio Azteca,Mexico City,Group Stage
+18,2026-06-19,18:00,D,England,Korea Republic,NRG Stadium,Houston,Group Stage
+19,2026-06-25,16:00,D,England,Colombia,AT&T Stadium,Dallas,Group Stage
+20,2026-06-20,16:00,C,Brazil,Senegal,Arrowhead Stadium,Kansas City,Group Stage
+21,2026-07-04,17:00,KO,Group A Winner,Group B Runner-up,MetLife Stadium,New Jersey,Round of 16
+22,2026-07-11,17:00,KO,QF1 Winner,QF2 Winner,AT&T Stadium,Dallas,Quarter-final
+23,2026-07-15,16:00,KO,SF1 Winner,SF2 Winner,MetLife Stadium,New Jersey,Semi-final
+24,2026-07-19,15:00,KO,SF1 Loser,SF2 Loser,Hard Rock Stadium,Miami,Third Place
+25,2026-07-19,15:00,KO,Finalist 1,Finalist 2,MetLife Stadium,New Jersey,Final
