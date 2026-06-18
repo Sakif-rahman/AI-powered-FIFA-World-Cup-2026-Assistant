@@ -1,0 +1,340 @@
+==============================================================================
+ FIFA WORLD CUP 2026 ASSISTANT — HOW THE PROJECT WORKS
+==============================================================================
+
+A multi-agent AI assistant that answers questions about the FIFA World Cup 2026
+(teams, history, statistics, schedules, and data-driven predictions).
+
+This document focuses on the three core technologies:
+   1. LangGraph / LangChain   (multi-agent orchestration)
+   2. AI Agents               (the supervisor + specialists)
+   3. MCP (Model Context Protocol)  (the tool layer)
+
+It also briefly covers the supporting pieces (Groq LLM, RAG with ChromaDB,
+and the Streamlit frontend) so the whole flow makes sense.
+
+
+==============================================================================
+ 1. THE BIG PICTURE — WHAT HAPPENS WHEN YOU ASK A QUESTION
+==============================================================================
+
+    User types a question in the Streamlit UI (app.py)
+                 |
+                 v
+    run_query()  in  src/graph/workflow.py
+                 |
+                 v
+    +-------------------------------------------------------------+
+    |               LANGGRAPH WORKFLOW (a StateGraph)             |
+    |                                                             |
+    |   SUPERVISOR AGENT  --> analyzes intent, picks ONE route    |
+    |        |                                                    |
+    |        | (conditional edge)                                 |
+    |        v                                                    |
+    |   one of the 5 SPECIALIST AGENTS:                           |
+    |     - Team Agent        (RAG + MCP tool)                    |
+    |     - History Agent     (MCP tools over CSV data)          |
+    |     - Prediction Agent  (scoring algorithm + MCP tools)    |
+    |     - Schedule Agent    (MCP tool: get_schedule)          |
+    |     - General Agent     (grounded free-form answer)        |
+    |        |                                                    |
+    |        v                                                    |
+    |       END  --> final answer string                         |
+    +-------------------------------------------------------------+
+                 |
+                 v
+    Streamlit shows the answer (and which MCP tools were used)
+
+Every specialist gets its facts the SAME way: by calling the shared MCP TOOLS
+(src/mcp/tools.py). The LLM (Groq) is only used to turn those facts into a
+clean natural-language answer. This keeps answers grounded in real data instead
+of being "made up" by the model.
+
+
+==============================================================================
+ 2. LANGGRAPH / LANGCHAIN  (THE ORCHESTRATION LAYER)
+==============================================================================
+
+WHAT IT IS
+----------
+LangGraph (built on top of LangChain) lets you model an AI application as a
+GRAPH of nodes and edges instead of one giant prompt. Each node is a step
+(here: an agent), and edges decide what runs next. This is what makes the app
+"multi-agent" rather than a single chatbot.
+
+KEY FILE:  src/graph/workflow.py
+
+HOW IT IS BUILT
+---------------
+    graph = StateGraph(AgentState)          # a graph whose nodes share a state
+
+    graph.add_node("supervisor", supervisor_node)
+    graph.add_node("team",       team_node)
+    graph.add_node("history",    history_node)
+    graph.add_node("prediction", prediction_node)
+    graph.add_node("schedule",   schedule_node)
+    graph.add_node("general",    general_node)
+
+    graph.set_entry_point("supervisor")     # every query starts at the supervisor
+
+    graph.add_conditional_edges(            # the supervisor decides where to go
+        "supervisor",
+        route_selector,                     # function: state -> next node name
+        { "team": "team", "history": "history", "prediction": "prediction",
+          "schedule": "schedule", "general": "general" },
+    )
+
+    for node in (team, history, prediction, schedule, general):
+        graph.add_edge(node, END)           # each specialist ends the graph
+
+    compiled = graph.compile()              # ready to run
+
+THE SHARED STATE  (src/agents/state.py)
+---------------------------------------
+Nodes do not call each other directly — they read from and write to a shared
+dictionary called AgentState (a TypedDict):
+
+    query       -> the user's question (input)
+    route       -> which specialist was chosen ("team", "history", ...)
+    response    -> the final natural-language answer (output)
+    tool_calls  -> list of MCP tool names that were used (for transparency)
+    context     -> scratch space for retrieved data
+
+Each node receives the current state and returns an updated copy. LangGraph
+passes that updated state along the edges.
+
+RUNNING IT  (workflow.py -> run_query)
+--------------------------------------
+    app = get_app()                         # cached, compiled graph
+    result = app.invoke({"query": query, "tool_calls": []})
+    # result["response"]  -> the answer
+    # result["route"]     -> the agent that handled it
+    # result["tool_calls"]-> the MCP tools used
+
+NOTE ON "LangChain": only langchain-core is used (as a dependency of LangGraph).
+The project deliberately keeps the LLM call simple via a thin Groq wrapper
+(groq_chatbot.py) instead of heavy LangChain chains.
+
+
+==============================================================================
+ 3. THE AI AGENTS
+==============================================================================
+
+There are 6 agents total: 1 supervisor + 5 specialists. Each agent is just a
+Python function ("node") that takes the state, does its job, and returns the
+state with a "response" filled in.
+
+--------------------------------------------------------------------
+ 3a. SUPERVISOR AGENT  (the router)   ->  src/agents/supervisor.py
+--------------------------------------------------------------------
+Its only job is to read the question and decide which ONE specialist should
+handle it. It does this in two layers (robust by design):
+
+  1) LLM CLASSIFICATION (primary):
+     It asks the Groq LLM, with a strict system prompt, to reply with exactly
+     one route word from: team | history | prediction | schedule | general.
+        raw = get_chatbot().chat(query, system_prompt=_ROUTER_SYSTEM,
+                                  temperature=0.0, max_tokens=8)
+
+  2) KEYWORD FALLBACK (safety net):
+     If the LLM is unavailable or returns something invalid, it falls back to
+     keyword/heuristic matching (e.g. "predict", "fixture", "winner", a year
+     like 1998, or a detected team name). See _keyword_route().
+
+The chosen route is stored in state["route"], and route_selector() returns it
+so the conditional edge knows where to go next.
+
+--------------------------------------------------------------------
+ 3b. TEAM AGENT   ->  src/agents/team_agent.py
+--------------------------------------------------------------------
+Answers questions about a national team (coach, captain, players, style,
+comparisons). It builds context from TWO sources, then asks the LLM to write
+the answer using ONLY that context:
+   - STRUCTURED FACTS via the MCP tool  get_team_info(team)
+   - SEMANTIC RAG via ChromaDB          get_vector_store().query(query)
+It records tool_calls = ["get_team_info", ..., "rag.query"].
+
+--------------------------------------------------------------------
+ 3c. HISTORY AGENT   ->  src/agents/history_agent.py
+--------------------------------------------------------------------
+Answers about past World Cups (winners, records, stats) using MCP tools such
+as get_worldcup_history(year) and get_titles_table() over the CSV datasets.
+
+--------------------------------------------------------------------
+ 3d. PREDICTION AGENT   ->  src/agents/prediction_agent.py
+--------------------------------------------------------------------
+Forecasts likely outcomes with a TRANSPARENT, explainable scoring algorithm
+(NOT betting/gambling). For each team it computes a 0-100 "strength score":
+
+    composite = 0.70 * ranking_score     (FIFA ranking points, normalized)
+              + 0.20 * titles_score      (World Cups won, Brazil's 5 = max)
+              + 0.10 * recent_score      (finals/semis/quarters pedigree)
+
+It pulls the raw numbers via MCP tools (get_team_ranking, get_titles_table),
+ranks the candidate teams, and then asks the LLM to EXPLAIN the result using
+only the computed numbers (the prompt forbids inventing values).
+
+--------------------------------------------------------------------
+ 3e. SCHEDULE AGENT   ->  src/agents/schedule_agent.py
+--------------------------------------------------------------------
+Answers "when/where does X play" using the MCP tool get_schedule(team, group)
+over the 2026 fixtures dataset.
+
+--------------------------------------------------------------------
+ 3f. GENERAL AGENT   ->  src/agents/general_agent.py
+--------------------------------------------------------------------
+Handles anything that doesn't fit the others, giving a grounded free-form
+answer about the World Cup.
+
+A SMALL HELPER:  src/agents/extract.py
+   Utility functions (extract_teams, extract_year, extract_group) that pull
+   entities out of the raw question so agents and the router know what the
+   user is talking about.
+
+
+==============================================================================
+ 4. MCP — THE MODEL CONTEXT PROTOCOL (THE TOOL LAYER)
+==============================================================================
+
+WHAT MCP IS
+-----------
+The Model Context Protocol (MCP) is an open standard for exposing "tools"
+(functions an AI can call) and data to AI models/clients in a uniform,
+spec-compliant way. Think of it as a universal adapter: any MCP-compatible
+client (Claude Desktop, IDEs, other agents) can discover and call your tools
+without custom glue code.
+
+In this project MCP is the SINGLE, well-defined gateway to all data. Agents
+never read CSV/JSON files directly for their answers — they go through tools.
+
+THE TOOLS (single source of truth)  ->  src/mcp/tools.py
+--------------------------------------------------------
+Plain Python functions, each returning a JSON-serializable dict with an "ok"
+flag plus a payload (so callers handle failures gracefully):
+
+    get_team_info(team_name)        -> coach, captain, players, titles
+    get_worldcup_history(year)      -> result of a past edition
+    get_team_ranking(team_name)     -> current FIFA ranking entry
+    get_matches(team_name)          -> historical matches for a team
+    get_schedule(team_name, group)  -> 2026 fixtures for a team or group
+    get_titles_table()              -> {country: titles won}
+    get_top_rankings(n)             -> top-n FIFA-ranked teams
+
+They are collected in a TOOLS registry:
+    TOOLS = { "get_team_info": get_team_info, ... }
+
+These functions read from the cached data-access layer src/datastore.py, which
+loads the CSV/JSON files in the data/ folder.
+
+TWO WAYS THE SAME TOOLS ARE USED  (important design choice)
+-----------------------------------------------------------
+  (A) IN-PROCESS by the agents.
+      The Streamlit app imports src.mcp.tools and calls the functions directly
+      (e.g. team_agent calls wc_tools.get_team_info(team)). This avoids spawning
+      a subprocess, which keeps everything inside a single Streamlit Cloud
+      process and is fast.
+
+  (B) AS A REAL MCP SERVER for external clients.   ->  src/mcp/server.py
+      The same functions are registered on a FastMCP server so any external
+      MCP client can call them over the protocol:
+
+          from mcp.server.fastmcp import FastMCP
+          server = FastMCP("fifa-worldcup-2026")
+
+          @server.tool()
+          def get_team_info(team_name: str) -> dict:
+              return wc_tools.get_team_info(team_name)   # delegates to (A)
+          ...
+          server.run()   # stdio transport
+
+      Run it standalone with:
+          python -m src.mcp.server
+
+WHY THIS MATTERS
+----------------
+  - One source of truth: the logic lives once in tools.py; the server just
+    wraps it. No duplicated behaviour.
+  - Transparency: every agent records which tools it called in
+    state["tool_calls"], and the UI can show them.
+  - Grounding: because answers are built from tool output, the LLM explains
+    real data rather than hallucinating facts.
+
+
+==============================================================================
+ 5. SUPPORTING PIECES (BRIEF)
+==============================================================================
+
+GROQ LLM  ->  groq_chatbot.py
+   A single, thin wrapper around the Groq API exposing get_chatbot().chat(...).
+   Used by the supervisor (for routing) and by every specialist (to phrase the
+   final answer). Model + key come from config.py / environment / Streamlit
+   secrets (GROQ_API_KEY, GROQ_MODEL).
+
+RAG + CHROMADB  ->  src/rag/vector_store.py and src/rag/ingest.py
+   A retrieval-augmented-generation layer over the team knowledge base.
+   - vector_store.py wraps a persistent ChromaDB collection and uses ChromaDB's
+     built-in ONNX MiniLM embeddings (all-MiniLM-L6-v2) — no PyTorch, so deploys
+     stay small and fast.
+   - ingest.py loads data/team_knowledge.json into the vector store.
+   - The Team Agent queries it for semantically-relevant context.
+   Build it manually with:  python -m src.rag.ingest
+   (the app also builds it automatically on first run).
+
+DATA LAYER  ->  src/datastore.py  +  data/*.csv / *.json
+   Cached access to the sample datasets (history, matches, rankings, schedule,
+   team knowledge). MCP tools call into this layer.
+
+CONFIG + LOGGING
+   config.py            -> centralized Config (keys, model, chroma dir, top_k).
+   src/utils/logging_config.py -> structured logging used across the app.
+
+FRONTEND  ->  app.py  (+ .streamlit/config.toml)
+   The Streamlit chat UI: chat history, team selector, example prompts, and a
+   live statistics panel. It calls run_query() and renders the response.
+
+
+==============================================================================
+ 6. END-TO-END EXAMPLE
+==============================================================================
+
+Question: "Who is likely to win Group J?"
+
+  1. app.py -> run_query("Who is likely to win Group J?")
+  2. LangGraph starts at the SUPERVISOR node.
+  3. Supervisor (LLM) classifies intent -> route = "prediction".
+     state["route"] = "prediction"
+  4. Conditional edge sends state to the PREDICTION AGENT node.
+  5. Prediction agent:
+       - extract_group("...Group J") -> "J"
+       - gets the teams in Group J (datastore.teams_in_group)
+       - calls MCP tools get_team_ranking / get_titles_table for the numbers
+       - computes a 0-100 strength score per team and ranks them
+       - tool_calls = ["get_team_ranking", "get_titles_table"]
+  6. It asks the Groq LLM to EXPLAIN the ranked scores (no invented numbers).
+  7. state["response"] = the explanation; edge goes to END.
+  8. app.py displays the answer and the MCP tools that were used.
+
+
+==============================================================================
+ 7. WHERE TO LOOK IN THE CODE  (QUICK MAP)
+==============================================================================
+
+   app.py                       Streamlit UI / entry point
+   src/graph/workflow.py        LangGraph graph: nodes, edges, run_query()
+   src/agents/state.py          The shared AgentState
+   src/agents/supervisor.py     Router agent (LLM + keyword fallback)
+   src/agents/team_agent.py     Team agent (RAG + MCP tool)
+   src/agents/history_agent.py  History agent
+   src/agents/prediction_agent.py  Prediction scoring algorithm
+   src/agents/schedule_agent.py    Schedule agent
+   src/agents/general_agent.py     General agent
+   src/agents/extract.py        Entity extraction helpers
+   src/mcp/tools.py             MCP TOOLS (single source of truth)
+   src/mcp/server.py            FastMCP server (external MCP access)
+   src/rag/vector_store.py      ChromaDB RAG wrapper
+   src/rag/ingest.py            Knowledge-base ingestion
+   src/datastore.py             Cached CSV/JSON data access
+   groq_chatbot.py              Groq LLM interface
+   config.py                    Centralized configuration
+
+==============================================================================

@@ -1,0 +1,330 @@
+==============================================================================
+ FIFA WORLD CUP 2026 ASSISTANT — DIFFICULT Q&A TEST SET
+==============================================================================
+
+PURPOSE
+-------
+A set of HARD questions and grounded answers for testing the multi-agent
+LangGraph workflow. Every question is deliberately "cross-domain": answering it
+well needs information that lives behind MORE THAN ONE specialist agent
+(Team / History / Prediction / Schedule / General) and their MCP tools.
+
+All answers are grounded ONLY in the project's own data files:
+   data/team_knowledge.json   (teams: coach, captain, players, group, titles)
+   data/world_cup_history.csv  (past editions: winners, scorers, hosts)
+   data/world_cup_matches.csv  (historical match results / stages)
+   data/fifa_rankings.csv      (current FIFA ranking points)
+   data/world_cup_schedule.csv (2026 fixtures, venues, groups)
+
+NOTE ON "MULTI-AGENT": the supervisor routes each query to one PRIMARY agent,
+but these questions are written so a complete answer combines data that several
+agents/tools own. Each item lists the agents + MCP tools needed. The prediction
+"strength scores" below are computed with the project's real formula:
+   score = (0.70*ranking + 0.20*titles + 0.10*recent_pedigree) * 100
+
+
+==============================================================================
+ SECTION A — TWO-AGENT QUESTIONS
+==============================================================================
+
+------------------------------------------------------------------------------
+Q1. "Brazil have won the most World Cups, but are they the favourite to win
+     in 2026 based on current form?"
+------------------------------------------------------------------------------
+Agents: History + Prediction
+MCP tools: get_titles_table, get_worldcup_history, get_team_ranking
+Difficulty: separates historical pedigree from current-form scoring.
+
+ANSWER:
+Yes on both counts. Historically, Brazil are the most successful nation with 5
+World Cup titles (1958, 1962, 1970, 1994, 2002) — more than any other country.
+On current form they also top the project's predictive model: with 1776 FIFA
+ranking points plus maximum historical pedigree, Brazil score about 92.2/100,
+the highest of any team. So the data agrees that Brazil are both the most
+decorated AND the strongest 2026 contender — though Argentina (~88) and
+Germany (~83.6) are close behind. (Analytical estimate, not betting advice.)
+
+
+------------------------------------------------------------------------------
+Q2. "Tell me about Argentina's captain — and remind me how their last World
+     Cup final went."
+------------------------------------------------------------------------------
+Agents: Team + History
+MCP tools: get_team_info, get_worldcup_history, get_matches
+Difficulty: one team fact + one historical match result.
+
+ANSWER:
+Argentina's captain is Lionel Messi, who also leads the attack alongside Julian
+Alvarez and Lautaro Martinez under coach Lionel Scaloni. In their last final —
+the 2022 World Cup in Qatar — Argentina drew 3-3 with France and won on
+penalties, claiming their third title (after 1978 and 1986). That made Messi a
+world champion and Argentina the defending champions heading into 2026.
+
+
+------------------------------------------------------------------------------
+Q3. "When and where does the defending champion play its first 2026 match,
+     and who is their coach?"
+------------------------------------------------------------------------------
+Agents: History (to identify defending champion) + Schedule + Team
+MCP tools: get_worldcup_history, get_schedule, get_team_info
+Difficulty: must first resolve "defending champion" = Argentina (2022 winner)
+before looking up the fixture.
+
+ANSWER:
+The defending champions are Argentina, who won the 2022 World Cup. Their first
+2026 group match (Group A) is against Croatia on 11 June 2026 at 19:00, played
+at the Estadio Azteca in Mexico City. Argentina are coached by Lionel Scaloni.
+
+
+------------------------------------------------------------------------------
+Q4. "Which 2026 team has reached the most finals without ever winning the
+     World Cup, and how are they ranked now?"
+------------------------------------------------------------------------------
+Agents: History + Team + Prediction
+MCP tools: get_worldcup_history, get_titles_table, get_team_ranking
+Difficulty: cross-reference "0 titles" against finals appearances in history.
+
+ANSWER:
+The Netherlands. They have reached three World Cup finals (1974, 1978 and 2010)
+but lost all three, so they have never won the trophy (0 titles). Today they are
+still strong: ranked 7th in the world with 1752 FIFA points, captained by Virgil
+van Dijk under coach Ronald Koeman. In the project's model they score about
+65.7/100 — solid, but behind the leading contenders.
+
+
+==============================================================================
+ SECTION B — THREE-AGENT QUESTIONS
+==============================================================================
+
+------------------------------------------------------------------------------
+Q5. "Who is most likely to win Group J, when do they play their opening match,
+     and what's their World Cup pedigree?"
+------------------------------------------------------------------------------
+Agents: Prediction + Schedule + History/Team
+MCP tools: get_schedule, get_team_ranking, get_titles_table, get_team_info
+Difficulty: identify Group J members, score them, fetch a fixture, add pedigree.
+
+ANSWER:
+Group J contains the United States, Mexico, Canada and Japan. Using the
+predictive model, the strength scores are roughly:
+   1. United States  ~58.6
+   2. Mexico         ~57.9
+   3. Japan          ~56.0
+   4. Canada         ~51.8
+So the USA are the narrow favourites to win Group J. Their opening 2026 match is
+against Japan on 12 June 2026 at 19:00 at SoFi Stadium, Los Angeles. On pedigree,
+the USA have never won the World Cup; their best finish was third place at the
+very first tournament in 1930. (Co-hosts USA, Mexico and Canada all sit in
+Group J's region of the schedule.) Analytical estimate, not betting advice.
+
+
+------------------------------------------------------------------------------
+Q6. "Compare Germany and France: titles, current ranking, and who the model
+     favours for 2026."
+------------------------------------------------------------------------------
+Agents: Team + History + Prediction
+MCP tools: get_team_info, get_titles_table, get_team_ranking
+Difficulty: a balanced multi-factor comparison.
+
+ANSWER:
+- Titles: Germany have won 4 World Cups (1954, 1974, 1990, 2014); France have won
+  2 (1998, 2018). Germany lead on history.
+- Current ranking: France are higher, 2nd in the world (1859 pts) versus Germany
+  9th (1716 pts). France lead on current form.
+- Model verdict: the two are very close. Germany score about 83.6/100 (boosted by
+  their four titles) and France about 83.1/100 (boosted by their elite ranking).
+  The model essentially rates them dead level, with Germany a fraction ahead.
+France are captained by Kylian Mbappe (coach Didier Deschamps); Germany by Joshua
+Kimmich (coach Julian Nagelsmann), with a young core of Musiala and Wirtz.
+
+
+------------------------------------------------------------------------------
+Q7. "Portugal have a legendary captain but no World Cup titles — what's their
+     history, and does the model rate them as contenders for 2026?"
+------------------------------------------------------------------------------
+Agents: Team + History + Prediction
+MCP tools: get_team_info, get_worldcup_history, get_team_ranking
+Difficulty: combine player/team facts, an empty title record, and a forecast.
+
+ANSWER:
+Portugal's captain is Cristiano Ronaldo, supported by Bruno Fernandes, Bernardo
+Silva and Rafael Leao under coach Roberto Martinez. They have never won the World
+Cup — their best finish was third place in 1966. Despite the talent, the model is
+cautious: Portugal score about 62.0/100. The reason is the formula's design — 70%
+of the score comes from FIFA ranking (Portugal are a strong 6th, 1771 pts), but
+they get 0 from the "titles" factor and little from recent deep-run pedigree.
+So they rate as dangerous dark horses rather than outright favourites.
+
+
+------------------------------------------------------------------------------
+Q8. "Mexico is co-hosting in 2026 — what makes that historic, where do they
+     play their first match, and how strong are they expected to be?"
+------------------------------------------------------------------------------
+Agents: Team/General + History + Schedule + Prediction
+MCP tools: get_team_info, get_schedule, get_team_ranking
+Difficulty: host trivia + a fixture + a forecast in one answer.
+
+ANSWER:
+Mexico's 2026 hosting is historic because it makes them the first nation ever to
+host the World Cup three times (1970, 1986 and 2026). They co-host alongside the
+United States and Canada. Mexico's first 2026 match (Group J) is against Canada
+on 12 June 2026 at 21:00 at the Estadio Azteca, Mexico City. Strength-wise they
+are mid-tier: ranked 14th (1652 pts), scoring about 57.9/100 in the model —
+right behind the USA in their group. Coach Javier Aguirre captains around Edson
+Alvarez, with Santiago Gimenez and Hirving Lozano in attack.
+
+
+==============================================================================
+ SECTION C — FOUR-AGENT / FULL-WORKFLOW QUESTIONS
+==============================================================================
+
+------------------------------------------------------------------------------
+Q9. "Give me a full scouting report on England: squad, World Cup history, their
+     first 2026 fixture, and their title chances."
+------------------------------------------------------------------------------
+Agents: Team + History + Schedule + Prediction (all four)
+MCP tools: get_team_info, get_worldcup_history, get_schedule, get_team_ranking
+Difficulty: a single answer touching every specialist.
+
+ANSWER:
+- Squad: England (the "Three Lions") are coached by Thomas Tuchel and captained
+  by Harry Kane, with Jude Bellingham, Bukayo Saka, Phil Foden and Declan Rice.
+- History: one World Cup title, won on home soil in 1966 (4-2 over West Germany).
+  More recently a 2018 semi-final and back-to-back Euro finals (2021, 2024).
+- First 2026 fixture: Group D vs Ecuador on 13 June 2026 at 21:00, AT&T Stadium,
+  Dallas.
+- Title chances: ranked 4th in the world (1812 pts); model score about 71.8/100 —
+  genuine contenders, but a tier below Brazil, Argentina, Germany and France.
+
+
+------------------------------------------------------------------------------
+Q10. "Build me the model's top-4 favourites for 2026, and for the No. 1, tell me
+      its last World Cup result and its opening fixture."
+------------------------------------------------------------------------------
+Agents: Prediction + History + Schedule (+ Team)
+MCP tools: get_top_rankings, get_team_ranking, get_titles_table,
+           get_worldcup_history, get_schedule
+Difficulty: produce a ranked list, then drill into the leader.
+
+ANSWER:
+Model top-4 favourites (strength score /100):
+   1. Brazil      ~92.2
+   2. Argentina   ~88.0
+   3. Germany     ~83.6
+   4. France      ~83.1
+The No. 1, Brazil, last appeared in the data with a 2018 quarter-final exit
+(beaten 2-1 by Belgium); their last title was 2002. Brazil's opening 2026 match
+(Group C) is against Switzerland on 13 June 2026 at 18:00, SoFi Stadium, Los
+Angeles. (Forecast is an analytical estimate, not betting advice.)
+
+
+------------------------------------------------------------------------------
+Q11. "Across all the host cities in the 2026 group stage, which famous old
+      World Cup final venue is being reused, and which team plays its opener
+      there — plus that team's history?"
+------------------------------------------------------------------------------
+Agents: Schedule + History + Team
+MCP tools: get_schedule, get_matches, get_worldcup_history, get_team_info
+Difficulty: connect a 2026 venue to a historic final venue.
+
+ANSWER:
+The Estadio Azteca in Mexico City is the reused historic venue — it hosted the
+1970 final (Brazil 4-1 Italy) and the 1986 final (Argentina 3-2 West Germany).
+In 2026 it stages Argentina's opener against Croatia (11 June, Group A) and
+Mexico vs Canada (12 June, Group J). Fittingly, Argentina — who won one of those
+classic Azteca finals in 1986 — return there: they are the defending champions
+(2022) and three-time winners (1978, 1986, 2022), captained by Lionel Messi.
+
+
+------------------------------------------------------------------------------
+Q12. "If Spain top their group, compare their 2026 title chances with their only
+      previous World Cup win, and tell me when they kick off."
+------------------------------------------------------------------------------
+Agents: History + Prediction + Schedule + Team
+MCP tools: get_worldcup_history, get_team_ranking, get_titles_table, get_schedule
+Difficulty: link a single past title to a present-day forecast and fixture.
+
+ANSWER:
+Spain's only World Cup title came in 2010 in South Africa (1-0 over the
+Netherlands in the final). For 2026 they are strong but not the top favourite:
+ranked 3rd in the world (1854 pts), they score about 72.7/100 in the model —
+contenders, behind Brazil, Argentina, Germany and France. They are the reigning
+European champions (Euro 2024), built around Rodri, Pedri and teenager Lamine
+Yamal under coach Luis de la Fuente. Spain kick off their 2026 campaign in Group
+E against Japan on 14 June 2026 at 16:00, Lumen Field, Seattle.
+
+
+==============================================================================
+ SECTION D — TRICKY / EDGE-CASE QUESTIONS (good for robustness testing)
+==============================================================================
+
+------------------------------------------------------------------------------
+Q13. "Which co-host has the lowest FIFA ranking, and how does the model rate
+      their chances compared with the other two hosts?"
+------------------------------------------------------------------------------
+Agents: Team/General + Prediction
+MCP tools: get_team_ranking, get_top_rankings
+Difficulty: must know the three co-hosts, then rank just them.
+
+ANSWER:
+The three co-hosts are the United States, Mexico and Canada. Canada has the
+lowest FIFA ranking of the trio at 30th (1480 pts), versus the USA at 11th
+(1675 pts) and Mexico at 14th (1652 pts). The model reflects this: Canada score
+about 51.8/100, behind the USA (~58.6) and Mexico (~57.9). Canada are still an
+exciting, improving side led by Alphonso Davies and Jonathan David under Jesse
+Marsch — but the data makes them the underdog among the hosts.
+
+
+------------------------------------------------------------------------------
+Q14. "Has any current 2026 team's coach previously won the World Cup as a coach,
+      and how do their teams rate now?"  (knowledge-gap / honesty test)
+------------------------------------------------------------------------------
+Agents: Team + History (+ Prediction)
+MCP tools: get_team_info, get_worldcup_history
+Difficulty: tests grounded honesty — the datasets list coaches and past winners
+but do NOT record which coach won which tournament.
+
+EXPECTED ANSWER BEHAVIOUR:
+The assistant should be honest about the data's limits. France's coach is Didier
+Deschamps and France won the 2018 World Cup, but the datasets do not explicitly
+record who coached each winning team, so the assistant should say it cannot
+confirm coach-level title history from the available data rather than guessing.
+It can still report current strength (e.g. France ~83.1/100) from the model.
+
+
+------------------------------------------------------------------------------
+Q15. "Show me Group A's fixtures and tell me which team in that group the model
+      ranks highest."
+------------------------------------------------------------------------------
+Agents: Schedule + Prediction
+MCP tools: get_schedule, get_team_ranking
+Difficulty: combine a group fixture list with a per-team forecast.
+
+ANSWER:
+Group A fixtures in the dataset feature Argentina heavily:
+   - Argentina vs Croatia — 11 June 2026, 19:00, Estadio Azteca, Mexico City
+   - Argentina vs Saudi Arabia — 18 June 2026, 19:00, Estadio BBVA, Monterrey
+   - Argentina vs Iran — 24 June 2026, 21:00, Estadio Azteca, Mexico City
+Of the Group A teams, the model rates Argentina highest by a wide margin
+(~88.0/100) — they are ranked No. 1 in the world (1886 pts) and are the
+defending champions, well clear of Croatia, Saudi Arabia and Iran.
+
+
+==============================================================================
+ HOW TO USE THIS FILE
+==============================================================================
+1. Run the app:  streamlit run app.py
+2. Paste each question into the chat.
+3. Check that:
+   - the supervisor routes sensibly (the UI shows the route + MCP tools used),
+   - the answer matches the grounded answer here,
+   - prediction scores are explained (and flagged "not betting advice"),
+   - Q14 is answered HONESTLY about missing data (no hallucination).
+
+Reference strength scores (model, /100), highest to lowest:
+   Brazil 92.2, Argentina 88.0, Germany 83.6, France 83.1, Spain 72.7,
+   England 71.8, Netherlands 65.7, Portugal 62.0, USA 58.6, Mexico 57.9,
+   Japan 56.0, Canada 51.8.
+(Computed from fifa_rankings.csv + titles + match pedigree using the project's
+own 0.70/0.20/0.10 weighting. Treat as illustrative, not betting advice.)
+==============================================================================
